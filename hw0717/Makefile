@@ -1,12 +1,12 @@
 CC=gcc
-OBJS=pcap.o
-TARGET=pcap
+#OBJS=pcap.o
+TARGET=hw0717
 LIBS=-lpcap
 
 all : $(TARGET)
 
-$(TARGET): $(OBJS)
-	$(CC) -o $@ $(OBJS) $(LIBS)
+$(TARGET): $(TARGET).c
+	$(CC) -o $(TARGET) $(TARGET).c $(LIBS)
 
 clean :
 	rm -f $(OBJS) $(TARGET)
