@@ -11,7 +11,7 @@
 #define TYPE_IPv4 0x0800
 #define TYPE_IPv6 0x8d66
 
-#define HEADER_LENGTH(x) x*4
+//#define HEADER_LENGTH(x) x*4
 
 #define VER_4 4
 #define PROTOCOL_ICMP 0x1
@@ -54,6 +54,10 @@ typedef struct my_tcp_header{
 	char* options;
 } tcp_header;
 
+int header_length(int a) {
+    return 4*a;
+}
+
 u_char* read_eth_header(u_char* packet, eth_header* eth) {
 	u_char* pos = packet;
 	memcpy(eth, pos, 12);
@@ -90,11 +94,11 @@ u_char* read_ip_header(u_char* packet, ip_header* ip) {
     pos += 4;
 	memcpy(ip->daddr, pos, 4);
 	pos += 4;
-	if(HEADER_LENGTH(ip->length) > MINIMUM_HEADER_SIZE) {
-		ip->options = (char*)malloc(HEADER_LENGTH(ip->length) - MINIMUM_HEADER_SIZE);
-		memcpy(ip->options, pos, HEADER_LENGTH(ip->length) - MINIMUM_HEADER_SIZE);
+	if(header_length(ip->length) > MINIMUM_HEADER_SIZE) {
+		ip->options = (char*)malloc(header_length(ip->length) - MINIMUM_HEADER_SIZE);
+		memcpy(ip->options, pos, header_length(ip->length) - MINIMUM_HEADER_SIZE);
 	}
-	pos += HEADER_LENGTH(ip->length) - MINIMUM_HEADER_SIZE;
+	pos += header_length(ip->length) - MINIMUM_HEADER_SIZE;
 	//printf("ip_header->protocol : %x\n",ip->protocol);
     //printf("ip_header->version : %x\n",ip->version);
 	return pos;
@@ -122,11 +126,11 @@ u_char* read_tcp_header(u_char* packet, tcp_header* tcp) {
 	pos += 2;
 	tcp->urgent = ntohs(*(int*)pos);
 	pos += 2;
-	if(MINIMUM_HEADER_SIZE < HEADER_LENGTH(tcp->offset)) {
-		tcp->options = (char*)malloc(HEADER_LENGTH(tcp->offset) - MINIMUM_HEADER_SIZE);
-		memcpy(tcp->options, pos, HEADER_LENGTH(tcp->offset) - MINIMUM_HEADER_SIZE);
+	if(MINIMUM_HEADER_SIZE < header_length(tcp->offset)) {
+		tcp->options = (char*)malloc(header_length(tcp->offset) - MINIMUM_HEADER_SIZE);
+		memcpy(tcp->options, pos, header_length(tcp->offset) - MINIMUM_HEADER_SIZE);
 	}
-	pos += HEADER_LENGTH(tcp->offset) - MINIMUM_HEADER_SIZE;
+	pos += header_length(tcp->offset) - MINIMUM_HEADER_SIZE;
     //printf("tcp data content : %s\n",pos);
 	return pos;
 }
@@ -135,7 +139,7 @@ int main(int argc, char *argv[])
 {
 	int i=0, j=0, data_len;
 	pcap_t *handle;			/* Session handle */
-	char* dev = "wlan1";			/* The device to sniff on */
+	char* dev = "dum0";			/* The device to sniff on */
 	char errbuf[PCAP_ERRBUF_SIZE];	/* Error string */
 	struct bpf_program fp;		/* The compiled filter */
 	char filter_exp[] = "port 80";	/* The filter expression */
@@ -228,7 +232,7 @@ if (pcap_setfilter(handle, &fp) == -1) {
         printf("ip.sip [%d.%d.%d.%d], ip.dip [%d.%d.%d.%d]\n",ip->saddr[0],ip->saddr[1],ip->saddr[2],ip->saddr[3],ip->daddr[0],ip->daddr[1],ip->daddr[2],ip->daddr[3]);
         printf("tcp.sport [%d], tcp.dport[%d]",tcp->sport, tcp->dport);
 	
-        data_len = ip->length - HEADER_LENGTH(ip->ihl + tcp->offset);
+        data_len = ip->length - header_length(ip->ihl + tcp->offset);
         //printf("%02x",current_pos[0]);
         for(i = 0; i< data_len; i++) {
             if(i%0x10 == 0)
