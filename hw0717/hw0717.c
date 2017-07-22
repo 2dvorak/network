@@ -139,7 +139,11 @@ int main(int argc, char *argv[])
 {
 	int i=0, j=0, data_len;
 	pcap_t *handle;			/* Session handle */
+<<<<<<< HEAD
 	char* dev = "dum0";			/* The device to sniff on */
+=======
+	char* dev = "wlan0";			/* The device to sniff on */
+>>>>>>> 1b90646dddf34ee479e734eac0dd004f4b76b2ab
 	char errbuf[PCAP_ERRBUF_SIZE];	/* Error string */
 	struct bpf_program fp;		/* The compiled filter */
 	char filter_exp[] = "port 80";	/* The filter expression */
