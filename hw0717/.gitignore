@@ -1,0 +1,15 @@
+#ignore object files
+*.[o]
+
+# or maybe, ignore all files..
+*.*
+
+# except .c and .cpp files...
+!*.c
+!*.cpp
+
+# and Makefile..
+!Makefile
+
+# and .gitignore itself maybe...?
+!.gitignore
