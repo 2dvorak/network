@@ -274,9 +274,10 @@ if (pcap_setfilter(handle, &fp) == -1) {
             }
             if(i == data_len - 1) {
                 if(i%0x10 < 4) printf("\t\t\t\t\t");
-                else if(i%0x10 < 8) printf("\t\t\t\t");
-                else if(i%0x10 < 12) printf("\t\t\t");
-                else printf("\t\t");
+                else if(i%0x10 < 7) printf("\t\t\t\t");
+                else if(i%0x10 < 11) printf("\t\t\t");
+                else if(i%0x10 < 15) printf("\t\t");
+                else printf("\t");
                 for(j = (i/0x10) * 0x10; j< data_len; j++) {
                     if(current_pos[j] >= 0x20 && current_pos[j] <= 0x7e) {
                         printf("%c",current_pos[j]);
