@@ -288,6 +288,20 @@ if (pcap_setfilter(handle, &fp) == -1) {
             }
         }
         printf("\n");
+        /*
+        for(i = 0; i < 16; i++) {
+            printf("data 0x01a0 : ");
+            for(j = 0; j<= i; j++) {
+                printf("0a");
+                if(j%4 == 3) printf(" ");
+            }
+            if(i<4) printf("\t\t\t\t\t");
+            else if(i<7) printf("\t\t\t\t");
+            else if(i<11) printf("\t\t\t");
+            else if(i<15) printf("\t\t");
+            else printf("\t");
+            printf("...<\n");
+        }*/
     }
 	/* And close the session */
 	pcap_close(handle);
