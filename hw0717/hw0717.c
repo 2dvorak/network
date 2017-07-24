@@ -2,6 +2,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <stdint.h>
+#include <arpa/inet.h>
 #include <pcap.h>
 
 #define MACADDR_SIZE 6
@@ -36,8 +37,10 @@ typedef struct my_ip_header{
 	uint8_t ttl;
 	uint8_t protocol;
 	uint16_t checksum;
-	uint8_t saddr[4];
-	uint8_t daddr[4];
+	//uint8_t saddr[4];
+	//uint8_t daddr[4];
+    struct in_addr saddr;
+    struct in_addr daddr;
 	uint8_t* options;
 } ip_header;
 
@@ -55,8 +58,8 @@ typedef struct my_tcp_header{
 	uint8_t* options;
 } tcp_header;
 
-uint32_t header_length(uint32_t a) {
-    return (uint32_t)4*a;
+int32_t header_length(int32_t a) {
+    return (int32_t)4*a;
 }
 
 u_char* read_eth_header(u_char* packet, eth_header* eth) {
@@ -64,7 +67,7 @@ u_char* read_eth_header(u_char* packet, eth_header* eth) {
 	memcpy(eth, pos, 12);
 	pos += 12;
 	//printf("mac addr : %x\n",eth->daddr[0]);
-	eth->type = ntohs(*(int*)pos);
+	eth->type = ntohs(*(uint16_t*)pos);
 	pos += 2;
 	//printf("eth_header->type : %x\n",eth->type);
 	return pos;
@@ -72,34 +75,38 @@ u_char* read_eth_header(u_char* packet, eth_header* eth) {
 
 u_char* read_ip_header(u_char* packet, ip_header* ip) {
 	u_char* pos = packet;
-	ip->version = (*(u_char*)pos)>>4;
-	ip->ihl = (*(u_char*)pos) & 0xf;
+	ip->version = (*(uint8_t*)pos)>>4;
+	ip->ihl = (*(uint8_t*)pos) & 0xf;
 	pos += 1;
-	ip->tos = *(u_char*)pos;
+	ip->tos = *(uint8_t*)pos;
 	pos += 1;
-	ip->length = ntohs(*(int*)pos);
+	ip->length = ntohs(*(uint16_t*)pos);
 	pos += 2;
-	ip->id = ntohs(*(int*)pos);
+	ip->id = ntohs(*(uint16_t*)pos);
 	pos += 2;
-	ip->ipflag = *(u_char*)pos;
+	ip->ipflag = *(uint8_t*)pos;
 	//ip += 1;
-	ip->offset = ntohs((*(int*)pos))>>4;
+	ip->offset = ntohs((*(uint16_t*)pos))>>4;
 	pos += 2;
-	ip->ttl = *(u_char*)pos;
+	ip->ttl = *(uint8_t*)pos;
 	pos += 1;
-	ip->protocol = *(u_char*)pos;
+	ip->protocol = *(uint8_t*)pos;
 	pos += 1;
-	ip->checksum = ntohs(*(int*)pos);
+	ip->checksum = ntohs(*(uint16_t*)pos);
 	pos += 2;
-	memcpy(ip->saddr, pos, 4);
+	//memcpy(ip->saddr, pos, 4);
+    ip->saddr.s_addr = *(uint32_t*)pos;
     pos += 4;
-	memcpy(ip->daddr, pos, 4);
+	//memcpy(ip->daddr, pos, 4);
+    ip->daddr.s_addr = *(uint32_t*)pos;
 	pos += 4;
 	if(header_length(ip->length) > MINIMUM_HEADER_SIZE) {
-		ip->options = (u_char*)malloc(header_length(ip->length) - MINIMUM_HEADER_SIZE);
-		memcpy(ip->options, pos, header_length(ip->length) - MINIMUM_HEADER_SIZE);
+		ip->options = (u_char*)malloc(header_length(ip->ihl) - MINIMUM_HEADER_SIZE);
+		memcpy(ip->options, pos, header_length(ip->ihl) - MINIMUM_HEADER_SIZE);
 	}
-	pos += header_length(ip->length) - MINIMUM_HEADER_SIZE;
+    //printf("ip->length : %d\n",ip->ihl);
+    //printf("IP header length : %d\n",header_length(ip->ihl));
+	pos += header_length(ip->ihl) - MINIMUM_HEADER_SIZE;
 	//printf("ip_header->protocol : %x\n",ip->protocol);
     //printf("ip_header->version : %x\n",ip->version);
 	return pos;
@@ -107,9 +114,9 @@ u_char* read_ip_header(u_char* packet, ip_header* ip) {
 
 u_char* read_tcp_header(u_char* packet, tcp_header* tcp) {
 	u_char* pos = (u_char*)packet;
-	tcp->sport = ntohs(*(uint32_t*)pos);
+	tcp->sport = ntohs(*(uint16_t*)pos);
 	pos += 2;
-	tcp->dport = ntohs(*(uint32_t*)pos);
+	tcp->dport = ntohs(*(uint16_t*)pos);
 	pos += 2;
 	tcp->seq = ntohl(*(uint32_t*)pos);
 	pos += 4;
@@ -121,37 +128,41 @@ u_char* read_tcp_header(u_char* packet, tcp_header* tcp) {
 	pos += 1;
 	tcp->tcpflag = *(u_char*)pos;
 	pos += 1;
-	tcp->window = ntohs(*(uint32_t*)pos);
+	tcp->window = ntohs(*(uint16_t*)pos);
 	pos += 2;
-	tcp->checksum = ntohs(*(uint32_t*)pos);
+	tcp->checksum = ntohs(*(uint16_t*)pos);
 	pos += 2;
-	tcp->urgent = ntohs(*(uint32_t*)pos);
+	tcp->urgent = ntohs(*(uint16_t*)pos);
 	pos += 2;
 	if(MINIMUM_HEADER_SIZE < header_length(tcp->offset)) {
 		tcp->options = (u_char*)malloc(header_length(tcp->offset) - MINIMUM_HEADER_SIZE);
 		memcpy(tcp->options, pos, header_length(tcp->offset) - MINIMUM_HEADER_SIZE);
 	}
+    //printf("TCP header length : %d\n",header_length(tcp->offset));
+    //printf("Additional bytes in tcp header of length %d.\n",header_length(tcp->offset) - MINIMUM_HEADER_SIZE);
 	pos += header_length(tcp->offset) - MINIMUM_HEADER_SIZE;
-    //printf("tcp data content : %s\n",pos);
+    //printf("tcp header length : %d\n",header_length(tcp->offset));
 	return pos;
 }
 
-int32_t main(int argc, u_char *argv[])
+int32_t main(int32_t argc, uint8_t *argv[])
 {
-	int32_t i=0, j=0, data_len;
+	int32_t i=0, j=0;
+    int32_t data_len;
 	pcap_t *handle;			/* Session handle */
-<<<<<<< HEAD
-	u_char* dev = "dum0";			/* The device to sniff on */
-=======
-	u_char* dev = "wlan0";			/* The device to sniff on */
->>>>>>> 1b90646dddf34ee479e734eac0dd004f4b76b2ab
-	u_char errbuf[PCAP_ERRBUF_SIZE];	/* Error string */
+    if(argc < 2) {
+        printf("Device name not given!\n");
+        printf("Usage : ./hw0717 [DEVICE]\n");
+        return -1;
+    }
+	uint8_t* dev = argv[1];			/* The device to sniff on */
+	uint8_t errbuf[PCAP_ERRBUF_SIZE];	/* Error string */
 	struct bpf_program fp;		/* The compiled filter */
-	u_char filter_exp[] = "port 80";	/* The filter expression */
+	uint8_t filter_exp[] = "port 80";	/* The filter expression */
 	bpf_u_int32 mask;		/* Our netmask */
 	bpf_u_int32 net;		/* Our IP */
 	struct pcap_pkthdr* header;	/* The header that pcap gives us */
-	const u_char *packet;		/* The actual packet */
+	const uint8_t *packet;		/* The actual packet */
     	time_t cap_sec = 0;   /* prevent multiple prints */
     	suseconds_t cap_usec = 0;
 	/* Define the device */
@@ -215,9 +226,7 @@ if (pcap_setfilter(handle, &fp) == -1) {
 		u_char* current_pos;
 		if(pcap_next_ex(handle, &header,&packet) <= 0) continue;
 		current_pos = (u_char*)packet;
-		/* Print its length */
-		//printf("Jacked a packet with length of [%d] at %d\n", header->caplen,(int)header->ts.tv_sec);
-		//sleep(1);
+
 		if(header->caplen < 1) continue;
 
         	cap_sec = header->ts.tv_sec;
@@ -228,8 +237,11 @@ if (pcap_setfilter(handle, &fp) == -1) {
 		if(eth->type != TYPE_IPv4) continue;
 		
 		current_pos = read_ip_header(current_pos, ip);
-        const char* dip = inet_ntop(ip->daddr);
-        const char* sip = inet_ntop(ip->saddr);
+        char dip[INET_ADDRSTRLEN], sip[INET_ADDRSTRLEN];
+        if((inet_ntop(AF_INET,&(ip->daddr),dip,INET_ADDRSTRLEN)) == NULL || (inet_ntop(AF_INET,&(ip->saddr),sip,INET_ADDRSTRLEN)) == NULL) {
+            printf("Error converting ip address.\n");
+            continue;
+        }
 		if(ip->protocol != PROTOCOL_TCP) continue;
 		
 		current_pos = read_tcp_header(current_pos,tcp);
@@ -241,19 +253,33 @@ if (pcap_setfilter(handle, &fp) == -1) {
         printf("tcp.sport [%d], tcp.dport[%d]",tcp->sport, tcp->dport);
 	
         data_len = ip->length - header_length(ip->ihl + tcp->offset);
-        //printf("%02x",current_pos[0]);
+        //printf("\n%02x\n",current_pos[0]);
+        //continue;
         for(i = 0; i< data_len; i++) {
             if(i%0x10 == 0)
         		printf("\ndata 0x%04x : ",i);
 		    //printf("%02x",*(u_char*)(current_pos + i));
             printf("%02x",current_pos[i]);
             if((i+1)%4 == 0) printf(" ");
-            if(i%0x10 == 0xf || i == data_len - 1) {
+            if(i%0x10 == 0xf) {
                 printf("\t");
                 for(j = i - 0xf; j <= i; j++) {
                     //if((*(u_char *)current_pos + i - 0x10 + j) >= 0x20 && (*(u_char *)current_pos + i - 0x10 + j) <= 0x7e) {
-                    if(current_pos[i - 0xf + j] >= 0x20 && current_pos[i - 0xf + j] <= 0x7e) {
-                        printf("%c",current_pos[i - 0xf + j]);
+                    if(current_pos[j] >= 0x20 && current_pos[j] <= 0x7e) {
+                        printf("%c",current_pos[j]);
+                    } else {
+                        printf(".");
+                    }
+                }
+            }
+            if(i == data_len - 1) {
+                if(i%0x10 < 4) printf("\t\t\t\t\t");
+                else if(i%0x10 < 8) printf("\t\t\t\t");
+                else if(i%0x10 < 12) printf("\t\t\t");
+                else printf("\t\t");
+                for(j = (i/0x10) * 0x10; j< data_len; j++) {
+                    if(current_pos[j] >= 0x20 && current_pos[j] <= 0x7e) {
+                        printf("%c",current_pos[j]);
                     } else {
                         printf(".");
                     }
@@ -264,6 +290,7 @@ if (pcap_setfilter(handle, &fp) == -1) {
     }
 	/* And close the session */
 	pcap_close(handle);
+    free(header);
     free(eth);
     free(ip);
     free(tcp);
